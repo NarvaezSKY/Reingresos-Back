@@ -10,9 +10,19 @@ const PORT = process.env.PORT || 4000;
 // Configurar formato de Morgan según el entorno
 const morganFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
 
+// Configuración de CORS
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? 'https://reingresos-front.vercel.app'
+    : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080'], // Para desarrollo local
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
 // Middlewares
 app.use(morgan(morganFormat)); // Logging de peticiones HTTP - 'dev' para desarrollo, 'combined' para producción
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
