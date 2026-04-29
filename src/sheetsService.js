@@ -71,8 +71,27 @@ async function idExists(id) {
   return item !== null;
 }
 
+// Función para verificar si un número de documento ya existe
+async function documentNumberExists(numeroDocumento) {
+  const { header, dataRows } = await getHeaderAndRows();
+  for (const row of dataRows) {
+    const obj = rowToObj(header, row);
+    if (String(obj.numeroDocumento) === String(numeroDocumento)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function createItem(item) {
   const { header } = await getHeaderAndRows();
+  
+  // Verificar que el número de documento no exista (si se proporciona)
+  if (item.numeroDocumento) {
+    if (await documentNumberExists(item.numeroDocumento)) {
+      throw new Error(`El número de documento ${item.numeroDocumento} ya existe. Use un número diferente.`);
+    }
+  }
   
   // Generar ID único si no se proporciona
   if (!item.id) {
@@ -116,6 +135,14 @@ async function updateItem(id, newData) {
   const rowIndex = await findRowIndexById(id);
   if (rowIndex === -1) return null;
   const existing = await getItemById(id);
+  
+  // Verificar número de documento si se está actualizando
+  if (newData.numeroDocumento && newData.numeroDocumento !== existing.numeroDocumento) {
+    if (await documentNumberExists(newData.numeroDocumento)) {
+      throw new Error(`El número de documento ${newData.numeroDocumento} ya existe. Use un número diferente.`);
+    }
+  }
+  
   const merged = { ...existing, ...newData, id: existing.id };
   const row = objToRow(header, merged);
   
