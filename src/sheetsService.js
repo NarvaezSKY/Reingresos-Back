@@ -49,7 +49,7 @@ function sleep(ms) {
 }
 
 // Reintentos para fallos transitorios de Google API
-const RETRYABLE_CODES = [429, 500, 502, 503, 504];
+const RETRYABLE_CODES = [409, 429, 500, 502, 503, 504];
 const RETRYABLE_NETWORK_CODES = ['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'];
 
 async function withRetry(fn, maxRetries = 3) {
@@ -77,10 +77,10 @@ async function getHeaderAndRows() {
   if (!credentials) throw new Error('GOOGLE_ACCOUNT_JSON not set in env');
 
   const client = await getSheetsClient();
-  const res = await withRetry(() => client.spreadsheets.values.get({
-    spreadsheetId,
-    range: sheetName,
-  }));
+  const res = await withRetry(() => client.spreadsheets.values.get(
+    { spreadsheetId, range: sheetName },
+    { retry: false }
+  ));
   const rows = res.data.values || [];
   const header = rows[0] || [];
   const dataRows = rows.slice(1);
@@ -140,13 +140,16 @@ async function createItem(item) {
   const row = objToRow(header, item);
   const client = await getSheetsClient();
 
-  await withRetry(() => client.spreadsheets.values.append({
-    spreadsheetId,
-    range: sheetName,
-    valueInputOption: 'RAW',
-    insertDataOption: 'INSERT_ROWS', // Inserta fila nueva en vez de sobrescribir
-    requestBody: { values: [row] },
-  }));
+  await withRetry(() => client.spreadsheets.values.append(
+    {
+      spreadsheetId,
+      range: sheetName,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [row] },
+    },
+    { retry: false }
+  ));
 
   return item;
 }
@@ -195,12 +198,15 @@ async function updateItem(id, newData) {
   const range = `${sheetName}!A${rowIndex}:${endCol}${rowIndex}`;
 
   const client = await getSheetsClient();
-  await withRetry(() => client.spreadsheets.values.update({
-    spreadsheetId,
-    range,
-    valueInputOption: 'RAW',
-    requestBody: { values: [row] },
-  }));
+  await withRetry(() => client.spreadsheets.values.update(
+    {
+      spreadsheetId,
+      range,
+      valueInputOption: 'RAW',
+      requestBody: { values: [row] },
+    },
+    { retry: false }
+  ));
 
   return merged;
 }
@@ -211,7 +217,10 @@ let cachedSheetId = null;
 async function getSheetId() {
   if (cachedSheetId) return cachedSheetId;
   const client = await getSheetsClient();
-  const meta = await withRetry(() => client.spreadsheets.get({ spreadsheetId }));
+  const meta = await withRetry(() => client.spreadsheets.get(
+    { spreadsheetId },
+    { retry: false }
+  ));
   const sheet = meta.data.sheets.find(s => s.properties.title === sheetName);
   if (!sheet) throw new Error(`Sheet ${sheetName} not found`);
   cachedSheetId = sheet.properties.sheetId;
@@ -235,10 +244,13 @@ async function deleteItem(id) {
   }];
 
   const client = await getSheetsClient();
-  await withRetry(() => client.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: { requests },
-  }));
+  await withRetry(() => client.spreadsheets.batchUpdate(
+    {
+      spreadsheetId,
+      requestBody: { requests },
+    },
+    { retry: false }
+  ));
   return true;
 }
 
